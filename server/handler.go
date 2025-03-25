@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/tidwall/sjson"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -85,7 +84,6 @@ func (s *Server) NewMockHandler(
 		}
 
 		responseCode := mapper.StrToCode[shouldRespondWith.Code]
-
 		if shouldRespondWith.ErrorMessage != "" || responseCode != codes.OK {
 			logger.Debug("returning error response", "code", shouldRespondWith.Code, "error", shouldRespondWith.ErrorMessage)
 			return nil, status.Error(responseCode, shouldRespondWith.ErrorMessage)
@@ -95,22 +93,20 @@ func (s *Server) NewMockHandler(
 			return emptyMessage, nil
 		}
 
-		outjson := "{}"
-		for k, v := range shouldRespondWith.Body {
-			outjson, err = sjson.Set(outjson, k, v)
-			if err != nil {
-				return nil, status.Error(codes.FailedPrecondition, "failed to set property "+k+" in output message, verify the registered mappings: "+err.Error())
-			}
+		var outValue []byte
+		outValue, err = buildResponse(shouldRespondWith, msgIn, md)
+		if err != nil {
+			return nil, err
 		}
 
 		unmarshalOpts := protojson.UnmarshalOptions{
 			DiscardUnknown: s.config.DiscardUnknownFields,
 		}
-		if err = unmarshalOpts.Unmarshal([]byte(outjson), out.Interface()); err != nil {
+		if err = unmarshalOpts.Unmarshal(outValue, out.Interface()); err != nil {
 			return nil, status.Errorf(codes.FailedPrecondition, "check registered mappings for method, failed to unmarshal output message into %s message: %v", methodDescr.GetOutputType(), err.Error())
 		}
 
-		logger.Debug("successfully mapped gRPC request", "request", msgIn, "response", outjson)
+		logger.Debug("successfully mapped gRPC request", "request", msgIn, "response", string(outValue))
 		return out, nil
 	}, nil
 }

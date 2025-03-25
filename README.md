@@ -16,7 +16,7 @@ configuration options:
 | LOG_LEVEL                     | string | info    | Controls the log level. Possible values are: `debug`, `info`, `warn`, `error`.                                                                                                       |
 | LOG_JSON_FORMAT               | bool   | true    | Prints the logs in JSON format.                                                                                                                                                      |
 
-#### Data dir
+### Data dir
 
 The `DATA_DIR` is the directory where protofake searches for the mapping and descriptor files. The directory structure
 should look like this:
@@ -32,17 +32,28 @@ should look like this:
 The protofake will recursively search for the mapping files in the `mappings` directory and the descriptor files in the
 `descriptors`, so you can create subdirectories to organize your files if you want.
 
-#### Descriptors
+### Descriptors
 
 TBD
 
-#### Mappings
+### Mappings
 
 TBD
 
-### FAQ
+#### Value Getters
 
-got error on response mapping
+As the response value, you can use the value getters. The value getters are predefined string prefixes that will be
+replaced with the
+corresponding value. The following value getters are available:
+
+| Prefix                        | Description                                                                                                                                                                                                                                                                                            |
+|-------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| $req.body.<property_name>     | The value of the request body property with the name `<property_name>`. The <property_name> is the json path to target value. For example `$req.body.resource.name` will return the value of the `name` property in the `resource` object from the request body.                                       |
+| $req.metadata.<property_name> | The value of the request metadata property with the name `<property_name>`. The <property_name> is the metadata key. For example `$req.metadata.x-foo` will return the value of the `x-foo` metadata key from the request. The metadata could be an array of values, so it will joined with ` `(space) |
+
+### Troubleshooting
+
+Got an error on response mapping
 
 ```
 invalid value for bytes field value: "your value"
