@@ -2,6 +2,7 @@ package mapper
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/tidwall/gjson"
@@ -31,6 +32,7 @@ var StrToCode = map[string]codes.Code{
 
 // Mapping verifies the incoming message is satisfying the defined rules.
 type Mapping struct {
+	ID          string                  `json:"id"`
 	Endpoint    string                  `json:"endpoint"`
 	Metadata    map[string]ValueMatcher `json:"metadata"`
 	RequestBody map[string]ValueMatcher `json:"request_body"`
@@ -61,6 +63,38 @@ func (m *Mapping) matchesMetadata(md metadata.MD) bool {
 	}
 
 	return match(mdobj, m.Metadata)
+}
+
+// IsValid checks if the mapping is valid, if not it returns an error.
+func (m *Mapping) IsValid() error {
+	if m.Endpoint == "" {
+		return fmt.Errorf("mapping '%s' does not contain an endpoint", m.Endpoint)
+	}
+
+	endpointParts := strings.Split(strings.Trim(m.Endpoint, "/"), "/")
+	if len(endpointParts) != 2 {
+		return fmt.Errorf("mapping endpoint '%s' should be in the format 'package.service/method'", m.Endpoint)
+	}
+
+	for k, v := range m.Metadata {
+		if _, err := NewValueMatcher(v.Rule, v.Value); err != nil {
+			return fmt.Errorf("invalid value matcher for key '%s' in mapping '%s': %w", k, m.Endpoint, err)
+		}
+	}
+	for k, v := range m.RequestBody {
+		if _, err := NewValueMatcher(v.Rule, v.Value); err != nil {
+			return fmt.Errorf("invalid value matcher for key '%s' in mapping '%s': %w", k, m.Endpoint, err)
+		}
+	}
+
+	if m.Response.Code == "" {
+		m.Response.Code = "OK"
+	}
+	if _, ok := StrToCode[m.Response.Code]; !ok {
+		return fmt.Errorf("invalid response code '%s' in mapping '%s'", m.Response.Code, m.Endpoint)
+	}
+
+	return nil
 }
 
 func match(target map[string]any, mappings map[string]ValueMatcher) bool {

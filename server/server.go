@@ -20,7 +20,11 @@ type Server struct {
 	listener   net.Listener
 	services   map[string]*ServiceDesc
 
-	mappings       map[string][]mapper.Mapping
+	// mappings is a map of mappings for each service.
+	// The key is the full method name (e.g., "/package.Service/Method").
+	mappings map[string][]mapper.Mapping
+	// messageFactory is a map of message factories for each service.
+	// The key is the full method name (e.g., "/package.Service/Method").
 	messageFactory map[string]MessageFactory
 }
 
@@ -40,22 +44,6 @@ func New(conf config.GRPC) (*Server, error) {
 		services:       make(map[string]*ServiceDesc),
 		messageFactory: make(map[string]MessageFactory),
 	}, nil
-}
-
-func (s *Server) SetMappings(mappings []mapper.Mapping) {
-	endpointMappings := make(map[string][]mapper.Mapping)
-	for _, m := range mappings {
-		endpointMappings[m.Endpoint] = append(endpointMappings[m.Endpoint], m)
-	}
-	for k := range endpointMappings {
-		if len(endpointMappings[k]) == 0 {
-			delete(endpointMappings, k)
-			continue
-		}
-
-		slog.Debug("registered endpoint mappings", "endpoint", k, "mappings_count", len(endpointMappings[k]))
-	}
-	s.mappings = endpointMappings
 }
 
 // Close - gracefully shuts down the gRPC server.

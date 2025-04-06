@@ -44,13 +44,15 @@ func main() {
 		log.Fatalf("failed to create gRPC server: %s", err)
 	}
 
-	srv.SetMappings(mappings)
 	for _, d := range descriptors {
 		if err = srv.Register(d); err != nil {
 			log.Fatalf("failed to register gRPC services: %s", err)
 		}
 	}
 
+	if err = srv.SetMappings(mappings); err != nil {
+		log.Fatalf("can't start protofake with given mappings: %v", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	if conf.WatchMappingsChanges {
 		err = watchChanges(ctx, mappingsDir, func() {
@@ -62,7 +64,9 @@ func main() {
 				return
 			}
 
-			srv.SetMappings(mappings)
+			if err = srv.SetMappings(mappings); err != nil {
+				logger.Error("failed to reload mappings, unable to update mappings on server", "error", err)
+			}
 			logger.Info("reloaded mappings", "count", len(mappings))
 		})
 		if err != nil {

@@ -16,7 +16,7 @@ WORKDIR /app
 COPY --from=modules /go/pkg /go/pkg
 COPY . /app
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/app .
+RUN CGO_ENABLED=0 go build -o /bin/app .
 
 # application image
 FROM alpine

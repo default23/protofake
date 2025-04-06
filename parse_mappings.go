@@ -8,6 +8,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/google/uuid"
 
 	"github.com/default23/protofake/mapper"
 )
@@ -58,8 +61,14 @@ func parseMappingFiles(dir string) ([]mapper.Mapping, error) {
 			if err = json.Unmarshal(content, &mm); err != nil {
 				return fmt.Errorf("unmarshal mapping from file '%s': %w", path, err)
 			}
-			if err = validateMappings(mm...); err != nil {
-				return fmt.Errorf("validate mappings from file '%s': %w", path, err)
+			for i, m := range mappings {
+				if err = m.IsValid(); err != nil {
+					return fmt.Errorf("validate mapping '%s' from file '%s': %w", m.Endpoint, path, err)
+				}
+
+				if !strings.HasPrefix(m.Endpoint, "/") {
+					mappings[i].Endpoint = "/" + m.Endpoint
+				}
 			}
 
 			mappings = append(mappings, mm...)
@@ -68,8 +77,12 @@ func parseMappingFiles(dir string) ([]mapper.Mapping, error) {
 			if err = json.Unmarshal(content, &m); err != nil {
 				return fmt.Errorf("unmarshal mapping from file '%s': %w", path, err)
 			}
-			if err = validateMappings(m); err != nil {
+			if err = m.IsValid(); err != nil {
 				return fmt.Errorf("validate mappings from file '%s': %w", path, err)
+			}
+
+			if !strings.HasPrefix(m.Endpoint, "/") {
+				m.Endpoint = "/" + m.Endpoint
 			}
 
 			mappings = append(mappings, m)
@@ -82,33 +95,11 @@ func parseMappingFiles(dir string) ([]mapper.Mapping, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return mappings, nil
-}
-
-func validateMappings(mappings ...mapper.Mapping) error {
 	for _, m := range mappings {
-		if m.Endpoint == "" {
-			return fmt.Errorf("mapping '%s' does not contain an endpoint", m.Endpoint)
-		}
-		for k, v := range m.Metadata {
-			if _, err := mapper.NewValueMatcher(v.Rule, v.Value); err != nil {
-				return fmt.Errorf("invalid value matcher for key '%s' in mapping '%s': %w", k, m.Endpoint, err)
-			}
-		}
-		for k, v := range m.RequestBody {
-			if _, err := mapper.NewValueMatcher(v.Rule, v.Value); err != nil {
-				return fmt.Errorf("invalid value matcher for key '%s' in mapping '%s': %w", k, m.Endpoint, err)
-			}
-		}
-
-		if m.Response.Code == "" {
-			m.Response.Code = "OK"
-		}
-		if _, ok := mapper.StrToCode[m.Response.Code]; !ok {
-			return fmt.Errorf("invalid response code '%s' in mapping '%s'", m.Response.Code, m.Endpoint)
+		if strings.TrimSpace(m.ID) == "" {
+			m.ID = uuid.NewString()
 		}
 	}
 
-	return nil
+	return mappings, nil
 }

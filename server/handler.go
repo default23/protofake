@@ -2,16 +2,18 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -47,11 +49,19 @@ func (s *Server) NewMockHandler(
 			md = metadata.MD{}
 		}
 
+		ua := strings.Join(md.Get("user-agent"), ";")
+		xreq := strings.Join(md.Get("x-request-id"), ";")
+		if xreq == "" {
+			xreq = uuid.NewString()
+		}
+
 		logger := slog.With(
 			"method", fullMethodName,
 			"input_type", methodDescr.GetInputType(),
 			"output_type", methodDescr.GetOutputType(),
 			"metadata", md,
+			"user-agent", ua,
+			"x-request-id", xreq,
 		)
 
 		in, out := msgFactory()
@@ -59,7 +69,17 @@ func (s *Server) NewMockHandler(
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode input message: %v", err))
 		}
 
-		msgIn := parseMessage(in)
+		var jv []byte
+		jv, err = protojson.MarshalOptions{UseProtoNames: true}.Marshal(in.Interface())
+		slog.Debug("marshalled input message", "input", string(jv))
+		if err != nil {
+			slog.Error("marshalling input message", "error", err)
+		}
+
+		msgIn := make(map[string]any)
+		if err = json.Unmarshal(jv, &msgIn); err != nil {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to unmarshal input message: %v", err))
+		}
 
 		mappings := s.mappings[fullMethodName]
 		if len(mappings) == 0 {
@@ -109,72 +129,4 @@ func (s *Server) NewMockHandler(
 		logger.Debug("successfully mapped gRPC request", "request", msgIn, "response", string(outValue))
 		return out, nil
 	}, nil
-}
-
-func parseMessage(ref protoreflect.Message) map[string]interface{} {
-	result := make(map[string]interface{})
-	if ref == nil {
-		return result
-	}
-
-	ref.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		key := string(fd.Name())
-		result[key] = getFieldValue(v, fd)
-		return true
-	})
-
-	return result
-}
-
-func getFieldValue(v protoreflect.Value, fd protoreflect.FieldDescriptor) interface{} {
-	switch {
-	case fd.IsList():
-		return processList(v.List(), fd)
-	case fd.IsMap():
-		return processMap(v.Map(), fd)
-	case fd.Kind() == protoreflect.MessageKind:
-		return parseMessage(v.Message())
-	case fd.Kind() == protoreflect.EnumKind:
-		return fd.Enum().Values().ByNumber(v.Enum()).Name()
-	default:
-		return v.Interface()
-	}
-}
-
-func processList(list protoreflect.List, fd protoreflect.FieldDescriptor) []interface{} {
-	res := make([]interface{}, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		switch fd.Kind() { //nolint:exhaustive
-		case protoreflect.MessageKind:
-			res[i] = parseMessage(list.Get(i).Message())
-		case protoreflect.EnumKind:
-			res[i] = fd.Enum().Values().ByNumber(list.Get(i).Enum()).Name()
-		case protoreflect.StringKind:
-			res[i] = list.Get(i).String()
-		case protoreflect.Int32Kind, protoreflect.Int64Kind, protoreflect.Sint32Kind, protoreflect.Sint64Kind:
-			res[i] = list.Get(i).Int()
-		case protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-			res[i] = list.Get(i).Uint()
-		case protoreflect.BoolKind:
-			res[i] = list.Get(i).Bool()
-		case protoreflect.FloatKind, protoreflect.DoubleKind:
-			res[i] = list.Get(i).Float()
-		case protoreflect.BytesKind:
-			res[i] = list.Get(i).Bytes()
-		default:
-			res[i] = list.Get(i).Interface()
-		}
-	}
-	return res
-}
-
-func processMap(m protoreflect.Map, fd protoreflect.FieldDescriptor) map[string]interface{} {
-	res := make(map[string]interface{})
-
-	m.Range(func(k protoreflect.MapKey, v protoreflect.Value) bool {
-		res[k.String()] = getFieldValue(v, fd.MapValue())
-		return true
-	})
-
-	return res
 }
