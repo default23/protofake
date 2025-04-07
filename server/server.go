@@ -22,7 +22,7 @@ type Server struct {
 
 	// mappings is a map of mappings for each service.
 	// The key is the full method name (e.g., "/package.Service/Method").
-	mappings map[string][]mapper.Mapping
+	mappings map[string][]*mapper.Mapping
 	// messageFactory is a map of message factories for each service.
 	// The key is the full method name (e.g., "/package.Service/Method").
 	messageFactory map[string]MessageFactory

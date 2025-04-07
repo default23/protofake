@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -66,9 +67,19 @@ func (m *Mapping) matchesMetadata(md metadata.MD) bool {
 }
 
 // IsValid checks if the mapping is valid, if not it returns an error.
+// MUTATES the mapping with the default values.
 func (m *Mapping) IsValid() error {
 	if m.Endpoint == "" {
 		return fmt.Errorf("mapping '%s' does not contain an endpoint", m.Endpoint)
+	}
+	if m.ID == "" {
+		m.ID = uuid.NewString()
+	}
+	if m.Response.Body == nil {
+		m.Response.Body = make(map[string]any)
+	}
+	if m.Response.Code == "" {
+		m.Response.Code = "OK"
 	}
 
 	endpointParts := strings.Split(strings.Trim(m.Endpoint, "/"), "/")
@@ -87,11 +98,8 @@ func (m *Mapping) IsValid() error {
 		}
 	}
 
-	if m.Response.Code == "" {
-		m.Response.Code = "OK"
-	}
 	if _, ok := StrToCode[m.Response.Code]; !ok {
-		return fmt.Errorf("invalid response code '%s' in mapping '%s'", m.Response.Code, m.Endpoint)
+		return fmt.Errorf("invalid response code '%s' in mapping with id=%s, endpoint: '%s'", m.Response.Code, m.ID, m.Endpoint)
 	}
 
 	return nil

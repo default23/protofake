@@ -14,14 +14,14 @@ import (
 )
 
 // SetMappings replaces the current mappings with the provided ones.
-func (s *Server) SetMappings(mappings []mapper.Mapping) error {
-	endpointMappings := make(map[string][]mapper.Mapping)
+func (s *Server) SetMappings(mappings []*mapper.Mapping) error {
+	endpointMappings := make(map[string][]*mapper.Mapping)
 	for _, m := range mappings {
-		endpointMappings[m.Endpoint] = append(endpointMappings[m.Endpoint], m)
-
 		if err := s.isMappingApplicable(m); err != nil {
 			return fmt.Errorf("the mapping (id=%s enpoint=%s) is invalid: %w", m.ID, m.Endpoint, err)
 		}
+
+		endpointMappings[m.Endpoint] = append(endpointMappings[m.Endpoint], m)
 	}
 	for k := range endpointMappings {
 		if len(endpointMappings[k]) == 0 {
@@ -36,7 +36,7 @@ func (s *Server) SetMappings(mappings []mapper.Mapping) error {
 	return nil
 }
 
-func (s *Server) isMappingApplicable(m mapper.Mapping) error {
+func (s *Server) isMappingApplicable(m *mapper.Mapping) error {
 	if err := m.IsValid(); err != nil {
 		return fmt.Errorf("invalid mapping '%s': %w", m.Endpoint, err)
 	}

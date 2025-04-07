@@ -87,26 +87,37 @@ func (s *Server) NewMockHandler(
 			return nil, status.Error(codes.FailedPrecondition, "no mappings registered for method "+fullMethodName)
 		}
 
-		var shouldRespondWith *mapper.Response
+		var mapping *mapper.Mapping
 		// iterate backwards over the mappings
 		// because the last mapping is the most recent added mapping.
-		for _, mapping := range slices.Backward(mappings) {
-			if !mapping.Matches(md, msgIn) {
+		for _, m := range slices.Backward(mappings) {
+			if !m.Matches(md, msgIn) {
 				continue
 			}
 
-			shouldRespondWith = &mapping.Response
+			mapping = m
 			break
 		}
-		if shouldRespondWith == nil {
-			logger.Warn("no matching response mapping found")
-			return nil, status.Error(codes.FailedPrecondition, "no one of registered mappings matches")
+		if mapping == nil {
+			logger.Warn("no matching mapping found")
+			return nil, status.Error(codes.FailedPrecondition, "no one of registered mappings matches the request")
 		}
 
-		responseCode := mapper.StrToCode[shouldRespondWith.Code]
-		if shouldRespondWith.ErrorMessage != "" || responseCode != codes.OK {
-			logger.Debug("returning error response", "code", shouldRespondWith.Code, "error", shouldRespondWith.ErrorMessage)
-			return nil, status.Error(responseCode, shouldRespondWith.ErrorMessage)
+		logger = logger.With("mapping_id", mapping.ID)
+		code := mapping.Response.Code
+		if code == "" {
+			code = codes.OK.String()
+		}
+
+		responseCode := mapper.StrToCode[code]
+		if responseCode != codes.OK {
+			msg := "<unknown error message>"
+			if mapping.Response.ErrorMessage != "" {
+				msg = mapping.Response.ErrorMessage
+			}
+
+			logger.Debug("returning error response", "code", code, "error", mapping.Response.ErrorMessage)
+			return nil, status.Error(responseCode, msg)
 		}
 		if out == nil {
 			logger.Debug("returning empty response, because the method output message is not supposed to be used")
@@ -114,7 +125,7 @@ func (s *Server) NewMockHandler(
 		}
 
 		var outValue []byte
-		outValue, err = buildResponse(shouldRespondWith, msgIn, md)
+		outValue, err = buildResponse(&mapping.Response, msgIn, md)
 		if err != nil {
 			return nil, err
 		}

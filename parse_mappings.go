@@ -15,7 +15,7 @@ import (
 	"github.com/default23/protofake/mapper"
 )
 
-func parseMappingFiles(dir string) ([]mapper.Mapping, error) {
+func parseMappingFiles(dir string) ([]*mapper.Mapping, error) {
 	logger := slog.With("mappings_dir", dir)
 
 	logger.Debug("analyzing mappings directory")
@@ -34,7 +34,7 @@ func parseMappingFiles(dir string) ([]mapper.Mapping, error) {
 
 	logger.Debug("looking for .json mapping files")
 
-	mappings := make([]mapper.Mapping, 0)
+	mappings := make([]*mapper.Mapping, 0)
 	err = filepath.Walk(dir, func(path string, info fs.FileInfo, _ error) error {
 		if info == nil || info.IsDir() {
 			return nil
@@ -57,24 +57,24 @@ func parseMappingFiles(dir string) ([]mapper.Mapping, error) {
 
 		switch content[0] {
 		case '[':
-			var mm []mapper.Mapping
+			var mm []*mapper.Mapping
 			if err = json.Unmarshal(content, &mm); err != nil {
 				return fmt.Errorf("unmarshal mapping from file '%s': %w", path, err)
 			}
-			for i, m := range mappings {
+			for _, m := range mm {
 				if err = m.IsValid(); err != nil {
 					return fmt.Errorf("validate mapping '%s' from file '%s': %w", m.Endpoint, path, err)
 				}
 
 				if !strings.HasPrefix(m.Endpoint, "/") {
-					mappings[i].Endpoint = "/" + m.Endpoint
+					m.Endpoint = "/" + m.Endpoint
 				}
 			}
 
 			mappings = append(mappings, mm...)
 		case '{':
-			var m mapper.Mapping
-			if err = json.Unmarshal(content, &m); err != nil {
+			m := new(mapper.Mapping)
+			if err = json.Unmarshal(content, m); err != nil {
 				return fmt.Errorf("unmarshal mapping from file '%s': %w", path, err)
 			}
 			if err = m.IsValid(); err != nil {
@@ -90,7 +90,7 @@ func parseMappingFiles(dir string) ([]mapper.Mapping, error) {
 			return fmt.Errorf("mapping file '%s' does not contain a valid JSON content", path)
 		}
 
-		return nil // protofake - это сервер для мокирования gRPC сервисов
+		return nil
 	})
 	if err != nil {
 		return nil, err

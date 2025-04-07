@@ -18,8 +18,13 @@ func buildResponse(
 	reqBody map[string]any,
 	reqMetadata metadata.MD,
 ) ([]byte, error) {
+	respBody := make(map[string]any)
+	if resp.Body != nil {
+		respBody = resp.Body
+	}
+
 	outjson := "{}"
-	for k, v := range resp.Body {
+	for k, v := range respBody {
 		var err error
 		outjson, err = sjson.Set(outjson, k, getResponseValue(v, reqBody, reqMetadata))
 		if err != nil {
