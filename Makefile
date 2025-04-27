@@ -1,3 +1,5 @@
+EXAMPLE_DESCRIPTOR_OUT = ./example/data/descriptors/example.pb
+
 # ====================================================================================
 # Colors
 
@@ -26,6 +28,16 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
+
+build-example: ## Generate example protobuf files
+	@protoc \
+	-I ./example/app/proto \
+	-I ./example/app/proto_vendor \
+	--include_imports     \
+	--include_source_info \
+	--descriptor_set_out=${EXAMPLE_DESCRIPTOR_OUT} \
+	./example/app/proto/*.proto
+	@$(OK) "Generated example descriptor file: ${EXAMPLE_DESCRIPTOR_OUT}"
 
 lint: golangci-lint ## Run golangci-lint
 	@if ! $(GOLANGCI_LINT) run; then \

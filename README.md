@@ -6,7 +6,7 @@ command will run the protofake server with the default configuration:
 ```bash
 docker run -it --rm -p 5675:5675 --name protofake \ 
   -v /path/to/data:/data \
-default23/protofake:v1.1.1
+default23/protofake:latest
 ```
 
 ### Configuration

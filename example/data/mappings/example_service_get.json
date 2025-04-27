@@ -1,0 +1,57 @@
+[
+  {
+    "id": "example_Resource",
+    "endpoint": "/protofake.example.api.ExampleService/Get",
+    "metadata": {
+    },
+    "request_body": {
+      "id": {
+        "rule": "equal",
+        "value": 123
+      }
+    },
+    "response": {
+      "body": {
+        "resource.id": "$req.body.id",
+        "resource.name": "example",
+        "resource.tags": [
+          "tag1",
+          "tag2"
+        ],
+        "resource.rating": 4.5,
+        "resource.active": true,
+        "resource.metadata": {
+          "key1": "value1",
+          "key2": "value2"
+        },
+        "resource.labels": [
+          {
+            "name": "label1",
+            "value": "value1"
+          },
+          {
+            "name": "label2",
+            "value": "value2"
+          }
+        ],
+        "resource.created_at": "2025-04-27T00:00:00Z"
+      }
+    }
+  },
+  {
+    "id": "ERROR_not_found",
+    "endpoint": "/protofake.example.api.ExampleService/Get",
+    "metadata": {
+    },
+    "request_body": {
+      "id": {
+        "rule": "equal",
+        "value": 321
+      }
+    },
+    "response": {
+      "code": "NOT_FOUND",
+      "error_message": "resource not found"
+    }
+  }
+]

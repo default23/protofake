@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package protofake.example.api;
+
+option go_package = "iam_auth/;api";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+service ExampleService {
+  rpc Get(GetRequest) returns (GetResponse) {}
+  rpc Delete(DeleteRequest) returns (google.protobuf.Empty) {}
+  rpc List(google.protobuf.Empty) returns (ListResponse) {}
+  rpc Search(SearchRequest) returns (ListResponse) {}
+}
+
+message GetRequest {
+  int32 id = 1;
+}
+
+message GetResponse {
+  Resource resource = 1;
+}
+
+message DeleteRequest {
+  int32 id = 1;
+}
+
+message ListResponse {
+  repeated Resource resources = 1;
+}
+
+message SearchRequest {
+  string query = 1;
+}
+
+message Resource {
+  int32 id = 1;
+  string name = 2;
+
+  float rating = 3;
+  repeated string tags = 4;
+  map<string, string> metadata = 6;
+  bool active = 7;
+  optional string description = 8;
+  google.protobuf.BytesValue payload = 9;
+  repeated Label labels = 10;
+
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message Label {
+  string name = 1;
+  string value = 2;
+}
