@@ -35,6 +35,10 @@ type ValueMatcher struct {
 
 // NewValueMatcher creates a new ValueMatcher.
 func NewValueMatcher(rule MatchingRule, val any) (*ValueMatcher, error) {
+	if !rule.IsValid() {
+		return nil, fmt.Errorf("invalid matching rule: %s", rule)
+	}
+
 	str, ok := val.(string)
 	if ok { // for the string any rule is valid
 		switch rule { //nolint:exhaustive
@@ -115,6 +119,20 @@ func (m *ValueMatcher) Matches(val any) bool {
 		}
 
 		return g.Match(vval)
+	}
+
+	return false
+}
+
+// IsValid checks if the rule is valid matching rule type.
+func (mr MatchingRule) IsValid() bool {
+	switch mr { //nolint:exhaustive
+	case MatchingRuleEqual,
+		MatchingRuleEqualIgnoreCase,
+		MatchingRuleContains,
+		MatchingRuleRegex,
+		MatchingRuleGlob:
+		return true
 	}
 
 	return false

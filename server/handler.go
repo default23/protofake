@@ -134,7 +134,7 @@ func (s *Server) NewMockHandler(
 			DiscardUnknown: s.config.DiscardUnknownFields,
 		}
 		if err = unmarshalOpts.Unmarshal(outValue, out.Interface()); err != nil {
-			return nil, status.Errorf(codes.FailedPrecondition, "check registered mappings for method, failed to unmarshal output message into %s message: %v", methodDescr.GetOutputType(), err.Error())
+			return nil, status.Errorf(codes.FailedPrecondition, "check registered mappings for method, failed to unmarshal output message (mapping_id=%s) into %s message: %v", mapping.ID, methodDescr.GetOutputType(), err.Error())
 		}
 
 		logger.Debug("successfully mapped gRPC request", "request", msgIn, "response", string(outValue))

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
 	"github.com/tidwall/gjson"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/default23/protofake/mapper"
@@ -81,21 +83,39 @@ func (s *Server) isMappingApplicable(m *mapper.Mapping) error {
 		return fmt.Errorf("internal error: processing input message for method %q: %v", fullMethodName, err)
 	}
 
-	for valuePath := range m.RequestBody {
+	for valuePath, matcher := range m.RequestBody {
 		ej := gjson.GetBytes(inJsonBytes, valuePath)
 		if !ej.Exists() {
 			return fmt.Errorf("the json path %q is provided, but not exists in INPUT message", valuePath)
 		}
 
-		// TODO check for the value types of request and provided value matcher
+		// TODO: it may not be working on other rules
+		matcherValueType := reflect.TypeOf(matcher.Value)
+		messageValueType := reflect.TypeOf(ej.Value())
+		if matcherValueType != messageValueType {
+			return fmt.Errorf("the json path %q is provided, but the value type is not equal to the expected type, should be of type: %s, got: %s", valuePath, messageValueType, matcherValueType)
+		}
 	}
-	for valuePath := range m.Response.Body {
+
+	for valuePath, value := range m.Response.Body {
 		j := gjson.GetBytes(outJsonBytes, valuePath)
 		if !j.Exists() {
 			return fmt.Errorf("the json path %q is provided, but not exists in OUTPUT message", valuePath)
 		}
 
+		valueType := reflect.TypeOf(value)
+		if valueType.Kind() == reflect.String && strings.HasPrefix(value.(string), "$") {
+			// TODO check the given path ($req.body.some_name) exists in request body
+			continue
+		}
+
+		messageValueType := reflect.TypeOf(j.Value())
+		if valueType != messageValueType {
+			return fmt.Errorf("the json path %q is provided, but the value type is not equal to the expected type, should be of type: %s, got: %s", valuePath, messageValueType, valueType)
+		}
+
 		// TODO check for the value types of response and provided response mapper
+		// TODO response property could be a slice of objects, check this out
 	}
 
 	return nil
@@ -109,7 +129,8 @@ func marshalProtoMessage(pm interface {
 		return out, []byte("{}"), nil
 	}
 
-	message := pm.Interface()
+	message := proto.Clone(pm.Interface()) // to avoid modifying the original message
+	initDefaults(message.ProtoReflect())
 
 	mo := protojson.MarshalOptions{
 		UseProtoNames:     true,
@@ -125,4 +146,30 @@ func marshalProtoMessage(pm interface {
 	}
 
 	return out, outBytes, nil
+}
+
+func initDefaults(m protoreflect.Message) {
+	md := m.Descriptor()
+	for i := 0; i < md.Fields().Len(); i++ {
+		fd := md.Fields().Get(i)
+
+		// is for "optional" primitive fields, which are have nil by default.
+		if !m.Has(fd) {
+			newVal := m.NewField(fd)
+			m.Set(fd, newVal)
+		}
+
+		// is for message fields, which are have nil by default.
+		if fd.Kind() == protoreflect.MessageKind && !fd.IsList() && !fd.IsMap() {
+			if !m.Has(fd) {
+				newMsg := m.NewField(fd)
+				m.Set(fd, newMsg)
+
+				initDefaults(newMsg.Message())
+			} else {
+				childMsg := m.Get(fd).Message()
+				initDefaults(childMsg)
+			}
+		}
+	}
 }
