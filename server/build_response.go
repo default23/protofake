@@ -55,8 +55,7 @@ func getResponseValue(val any, reqBody map[string]any, reqMetadata map[string][]
 	if strings.HasPrefix(str, "$req.metadata.") {
 		valuePath := strings.TrimPrefix(str, "$req.metadata.")
 
-		values, _ := reqMetadata[valuePath]
-		return strings.Join(values, " ")
+		return strings.Join(reqMetadata[valuePath], " ")
 	}
 
 	return val

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -73,18 +72,18 @@ func (s *Server) isMappingApplicable(m *mapper.Mapping) error {
 
 	in, out := mf()
 
-	_, inJsonBytes, err := marshalProtoMessage(in)
+	inJSONBytes, err := marshalProtoMessage(in)
 	if err != nil {
-		return fmt.Errorf("internal error: processing input message for method %q: %v", fullMethodName, err)
+		return fmt.Errorf("internal error: processing input message for method %q: %w", fullMethodName, err)
 	}
 
-	_, outJsonBytes, err := marshalProtoMessage(out)
+	outJSONBytes, err := marshalProtoMessage(out)
 	if err != nil {
-		return fmt.Errorf("internal error: processing input message for method %q: %v", fullMethodName, err)
+		return fmt.Errorf("internal error: processing input message for method %q: %w", fullMethodName, err)
 	}
 
 	for valuePath, matcher := range m.RequestBody {
-		ej := gjson.GetBytes(inJsonBytes, valuePath)
+		ej := gjson.GetBytes(inJSONBytes, valuePath)
 		if !ej.Exists() {
 			return fmt.Errorf("the json path %q is provided, but not exists in INPUT message", valuePath)
 		}
@@ -98,7 +97,7 @@ func (s *Server) isMappingApplicable(m *mapper.Mapping) error {
 	}
 
 	for valuePath, value := range m.Response.Body {
-		j := gjson.GetBytes(outJsonBytes, valuePath)
+		j := gjson.GetBytes(outJSONBytes, valuePath)
 		if !j.Exists() {
 			return fmt.Errorf("the json path %q is provided, but not exists in OUTPUT message", valuePath)
 		}
@@ -123,10 +122,9 @@ func (s *Server) isMappingApplicable(m *mapper.Mapping) error {
 
 func marshalProtoMessage(pm interface {
 	Interface() protoreflect.ProtoMessage
-}) (map[string]any, []byte, error) {
-	out := make(map[string]any)
+}) ([]byte, error) {
 	if pm == nil { // emptypb.Empty for example
-		return out, []byte("{}"), nil
+		return []byte("{}"), nil
 	}
 
 	message := proto.Clone(pm.Interface()) // to avoid modifying the original message
@@ -139,13 +137,10 @@ func marshalProtoMessage(pm interface {
 	}
 	outBytes, err := mo.Marshal(message)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to verify output message (convert to json bytes): %w", err)
-	}
-	if err = json.Unmarshal(outBytes, &out); err != nil {
-		return nil, nil, fmt.Errorf("failed to verify output message(convert bytes to object): %w", err)
+		return nil, fmt.Errorf("failed to verify output message (convert to json bytes): %w", err)
 	}
 
-	return out, outBytes, nil
+	return outBytes, nil
 }
 
 func initDefaults(m protoreflect.Message) {

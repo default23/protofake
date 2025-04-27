@@ -126,7 +126,7 @@ func (m *ValueMatcher) Matches(val any) bool {
 
 // IsValid checks if the rule is valid matching rule type.
 func (mr MatchingRule) IsValid() bool {
-	switch mr { //nolint:exhaustive
+	switch mr {
 	case MatchingRuleEqual,
 		MatchingRuleEqualIgnoreCase,
 		MatchingRuleContains,

@@ -71,9 +71,9 @@ func (s *Server) NewMockHandler(
 
 		var jv []byte
 		jv, err = protojson.MarshalOptions{UseProtoNames: true}.Marshal(in.Interface())
-		slog.Debug("marshalled input message", "input", string(jv))
+		slog.Debug("marshaled input message", "input", string(jv))
 		if err != nil {
-			slog.Error("marshalling input message", "error", err)
+			slog.Error("marshaling input message", "error", err)
 		}
 
 		msgIn := make(map[string]any)
